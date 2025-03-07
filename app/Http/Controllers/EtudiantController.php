@@ -13,11 +13,37 @@ class EtudiantController extends Controller
         $this->middleware('auth');
     }
 
-    public function index()
-    {
-        $etudiants = Etudiant::with('courses')->get();
-        return view('etudiants.index', compact('etudiants'));
+    public function index(Request $request)
+{
+    // Get all courses for the filter dropdown
+    $courses = Course::all();
+
+    // Apply the search filter
+    $etudiants = Etudiant::with('courses');
+
+    if ($request->has('search') && $request->search) {
+        $searchTerm = $request->search;
+        $etudiants = $etudiants->where(function($query) use ($searchTerm) {
+            $query->where('nom', 'like', "%{$searchTerm}%")
+                  ->orWhere('prenom', 'like', "%{$searchTerm}%")
+                  ->orWhere('codeEtud', 'like', "%{$searchTerm}%");
+        });
     }
+
+    // Apply the course filter
+    if ($request->has('course_filter') && $request->course_filter) {
+        $etudiants = $etudiants->whereHas('courses', function ($query) use ($request) {
+            $query->where('intitule', $request->course_filter);
+        });
+    }
+
+    // Paginate the results
+    $etudiants = $etudiants->paginate(5);
+
+    // Return the view with the filtered etudiants and all courses for the filter
+    return view('etudiants.index', compact('etudiants', 'courses'));
+}
+
 
     public function create()
     {
